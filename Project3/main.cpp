@@ -13,32 +13,66 @@
 #include <math.h>
 #include <SOIL2.h>
 
-#include <time.h>
 #include <chrono> // better than time.h
 #include <cmath>
+#include <vector>
 
 using namespace std;
 
-bool WireFrame= false;
+/* -- Structs -- */
+struct Vec3 {
+    GLdouble x;
+    GLdouble y;
+    GLdouble z;
+    Vec3() {
+        x = y = z = 0;
+    }
+    Vec3(GLdouble x, GLdouble y, GLdouble z) {
+        this->x = x;
+        this->y = y;
+        this->z = z;
+    }
+};
+
+class Celestial {
+    public:
+        GLuint tex;                                     // texture identification
+        GLdouble radius;                                // radius of object
+        char* tex_location;                                 // location of image for texture loader
+        Celestial* orbits = nullptr;                    // what the object orbits around (nullptr if none)
+        GLdouble orbit_radius;                          // how far the object orbits around its "orbits" attribute
+        GLUquadricObj* sphere = nullptr;             // required for sphere to allow texture
+        GLdouble rotation_velocity;                 // how fast the object rotates individually
+        GLdouble orbit_velocity;                    // how fast the object orbits around its parent (if it has one)
+    Celestial(GLdouble radius, char* tex_location, Celestial* orbits, GLdouble orbit_radius, GLdouble rotation_velocity, GLdouble orbit_velocity) {
+        this->radius = radius;
+        this->tex_location = tex_location;
+        this->orbits = orbits;
+        this->orbit_radius = orbit_radius;
+        this->rotation_velocity = rotation_velocity;
+        this->orbit_velocity = orbit_velocity;
+    }
+};
 
 /* -- GLOBALS -- */
-GLuint tex;
-GLuint tex1;
 
-GLdouble camera_posX = 0;
-GLdouble camera_posY = 0; 
-GLdouble camera_posZ = 10;
-GLdouble camera_lookX = 0;
-GLdouble camera_lookY = 0; 
-GLdouble camera_lookZ = 0;
+Celestial sun(3,"images/sun.jpg",nullptr,0,1,0);
+Celestial earth(1,"images/earth.jpg",&sun,16,1,1);
+Celestial moon(0.3,"images/moon.jpg",&earth,2,1,1);
+vector<Celestial> space = {sun,earth,moon};
+
+bool WireFrame= false;
+
+Vec3 camera_pos;
+Vec3 camera_look;
+
 int theta = 45;
 
 GLdouble yaw = 4.55;
 GLdouble pitch = 1.55;
-//GLdouble roll = 0; 
 GLdouble speed = 0.1;
 
-GLUquadricObj *sphere= NULL; 
+
 
 /* --------------*/
 
@@ -89,11 +123,32 @@ void TextureLoader(char *fileName, GLuint tex){
      glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER,GL_NEAREST);
 }
 
+// Draws input object
+void draw(const Celestial &toRender) {
+    glPushMatrix();
+        if(toRender.orbits == nullptr) {
+            // pivot = origin
+            glBindTexture(GL_TEXTURE_2D,toRender.tex);
+            glRotated((double)theta,0,1,0);
+            gluSphere(toRender.sphere,toRender.radius,40,40);
+        } else {
+            // pivot = orbits
+            glBindTexture(GL_TEXTURE_2D,toRender.tex);
+            glTranslated(toRender.orbits->orbit_radius,0,0);
+            glRotated((double)theta,0,1,0);
+            glTranslated(toRender.orbit_radius,0,0);
+            glRotated((double)theta,0,1,0);
+            gluSphere(toRender.sphere,toRender.radius,40,40);
+        }
+    glPopMatrix();
+}
+
 static void display(void)
 {
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
     glMatrixMode(GL_MODELVIEW);
     glLoadIdentity();
+    
 
     /*
     Uses Spherical Coordinates for camera look position:
@@ -104,13 +159,13 @@ static void display(void)
         However, this assumes in the graph Z goes up and down (for pitch) but in OpenGL since Z is in/out of the screen it is actualy Y that
         affect pitch now so we change the functions to match
     */
-    camera_lookX = camera_posX + sin(pitch)*cos(yaw);
-    camera_lookY = camera_posY + cos(pitch);
-    camera_lookZ = camera_posZ + sin(pitch)*sin(yaw);
+    camera_look.x = camera_pos.x + sin(pitch)*cos(yaw);
+    camera_look.y = camera_pos.y + cos(pitch);
+    camera_look.z = camera_pos.z + sin(pitch)*sin(yaw);
     
     gluLookAt(
-        camera_posX,camera_posY,camera_posZ,         // eyeX, eyeY, eyeZ (camera pos)
-        camera_lookX,camera_lookY,camera_lookZ,    // centerX, centerY, centerZ (where camera is looking AT)
+        camera_pos.x,camera_pos.y,camera_pos.z,         // eyeX, eyeY, eyeZ (camera pos)
+        camera_look.x,camera_look.y,camera_look.z,    // centerX, centerY, centerZ (where camera is looking AT)
         0.0,1.0,0.0     // upX, upY, upZ (which way is up, keep same)
     );
 
@@ -118,23 +173,25 @@ static void display(void)
         glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);        //Draw Our Mesh In Wireframe Mesh
     else
         glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);        //Toggle WIRE FRAME
-    glBindTexture(GL_TEXTURE_2D, tex);
     
-    glPushMatrix();
-        glBindTexture(GL_TEXTURE_2D, tex); // images are 2D arrays of pixels, bound to the GL_TEXTURE_2D target.
-        glRotatef(-(float)theta,0,1,0);
-        //glutSolidTeapot(0.75);
-        gluSphere(sphere,2.0,40,40);
-      // glutSolidSphere(1.5,25,25);
-    glPopMatrix();
+    for (int i = 0; i < space.size(); i++) {
+        draw(space[i]);
+    }
+    // glPushMatrix();
+    //     glBindTexture(GL_TEXTURE_2D, tex); // images are 2D arrays of pixels, bound to the GL_TEXTURE_2D target.
+    //     glRotatef(-(float)theta,0,1,0);
+    //     //glutSolidTeapot(0.75);
+    //     gluSphere(sphere,2.0,40,40);
+    //   // glutSolidSphere(1.5,25,25);
+    // glPopMatrix();
 
-    glPushMatrix();
-        glBindTexture(GL_TEXTURE_2D, tex1); // images are 2D arrays of pixels, bound to the GL_TEXTURE_2D target.
-        glRotatef((float)theta,0,1,0);
-        glTranslatef(4,0,0);
-        glRotatef((float)theta,0,1,0);
-        glutSolidTeapot(0.75);
-    glPopMatrix();
+    // glPushMatrix();
+    //     glBindTexture(GL_TEXTURE_2D, tex1); // images are 2D arrays of pixels, bound to the GL_TEXTURE_2D target.
+    //     glRotatef((float)theta,0,1,0);
+    //     glTranslatef(4,0,0);
+    //     glRotatef((float)theta,0,1,0);
+    //     glutSolidTeapot(0.75);
+    // glPopMatrix();
 
     glutSwapBuffers();
     /*
@@ -146,8 +203,8 @@ static void display(void)
 
 // prints debugging info
 void debug() {
-    cout << "Camera Pos: (" << camera_posX << "," << camera_posY << "," << camera_posZ << ")\n";
-    cout << "Camera Look: (" << camera_lookX << "," << camera_lookY << "," << camera_lookZ << ")\n";
+    cout << "Camera Pos: (" << camera_pos.x << "," << camera_pos.y << "," << camera_pos.z << ")\n";
+    cout << "Camera Look: (" << camera_look.x << "," << camera_look.y << "," << camera_look.z << ")\n";
     cout << "yaw: " << yaw << "\n";
     cout << "pitch: " << pitch << "\n";
     cout << "speed: " << speed << "\n";
@@ -155,9 +212,9 @@ void debug() {
 
 void camera_strafe(int dir) {
     // dir = 1 or -1
-    camera_posX+=speed*sin(pitch)*cos(yaw)*dir;
-    camera_posY+=speed*cos(pitch)*dir;
-    camera_posZ+=speed*sin(pitch)*sin(yaw)*dir;
+    camera_pos.x+=speed*sin(pitch)*cos(yaw)*dir;
+    camera_pos.y+=speed*cos(pitch)*dir;
+    camera_pos.z+=speed*sin(pitch)*sin(yaw)*dir;
 }
 
 static void key(unsigned char key, int x, int y)
@@ -213,18 +270,10 @@ static void idle(void)
     auto d = chrono::duration_cast<chrono::milliseconds>(t2-t1);
     // wait 16.66ms (60fps)
     if (d.count() > 16.66) {
-        theta += 2;
+        theta += 1;
         theta = theta%360;
         t1 = chrono::high_resolution_clock::now();
     }
-    /*
-    if(clock()-start > 16.66) {
-        theta += 5;
-        theta = theta%360;
-        start = clock();
-    }
-    */
-    
     glutPostRedisplay();
 }
 
@@ -251,22 +300,20 @@ static void init(void)
   //  glCullFace(GL_BACK);
     
     glEnable(GL_TEXTURE_2D);
-    glGenTextures(1, &tex);
-    glGenTextures(1, &tex1);
     
-    TextureLoader("images/earth.jpg", tex);
-    TextureLoader("images/chud.jpg", tex1);
 
     glEnable(GL_LIGHT0);
     glEnable(GL_NORMALIZE);
     glEnable(GL_LIGHTING);
-
-    sphere = gluNewQuadric();
-    gluQuadricDrawStyle(sphere, GLU_FILL);
-    gluQuadricTexture(sphere, GL_TRUE);
-    gluQuadricNormals(sphere, GLU_SMOOTH);
-
-    //start = clock();
+    // Setup spheres for textyure loader
+    for (int i = 0; i < space.size(); i++) {
+        space[i].sphere = gluNewQuadric();
+        gluQuadricDrawStyle(space[i].sphere, GLU_FILL);
+        gluQuadricTexture(space[i].sphere, GL_TRUE);
+        gluQuadricNormals(space[i].sphere, GLU_SMOOTH);
+        glGenTextures(1, &space[i].tex);
+        TextureLoader(space[i].tex_location,space[i].tex);
+    }
 }
 
 
