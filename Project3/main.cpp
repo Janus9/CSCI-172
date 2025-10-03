@@ -36,32 +36,58 @@ struct Vec3 {
 
 class Celestial {
     public:
+        GLdouble theta = 0;
+        GLdouble orbit_theta = 0;
+        bool center_of_universe = false;
         GLuint tex;                                     // texture identification
         GLdouble radius;                                // radius of object
         char* tex_location;                                 // location of image for texture loader
-        Celestial* orbits = nullptr;                    // what the object orbits around (nullptr if none)
+        vector<Celestial*> children;                    // bodies that orbit ts
         GLdouble orbit_radius;                          // how far the object orbits around its "orbits" attribute
         GLUquadricObj* sphere = nullptr;             // required for sphere to allow texture
         GLdouble rotation_velocity;                 // how fast the object rotates individually
         GLdouble orbit_velocity;                    // how fast the object orbits around its parent (if it has one)
-    Celestial(GLdouble radius, char* tex_location, Celestial* orbits, GLdouble orbit_radius, GLdouble rotation_velocity, GLdouble orbit_velocity) {
+    Celestial(GLdouble radius, char* tex_location, GLdouble orbit_radius, GLdouble rotation_velocity, GLdouble orbit_velocity) {
         this->radius = radius;
         this->tex_location = tex_location;
-        this->orbits = orbits;
         this->orbit_radius = orbit_radius;
         this->rotation_velocity = rotation_velocity;
         this->orbit_velocity = orbit_velocity;
     }
+    // RPM of object = (orbit_velocity * 60 * 60) / 360
 };
 
 /* -- GLOBALS -- */
 
-Celestial sun(3,"images/sun.jpg",nullptr,0,1,0);
-Celestial earth(1,"images/earth.jpg",&sun,16,1,1);
-Celestial moon(0.3,"images/moon.jpg",&earth,2,1,1);
-vector<Celestial> space = {sun,earth,moon};
+// Celestial sun(12,"images/sun.jpg",0,0.0039,0);
+// Celestial mercury(0.38,"images/mercury.jpg",20,0.017,4.15);
+// Celestial venus(0.95,"images/venus.jpg",30,-0.004,1.63);
+// Celestial earth(1,"images/earth.jpg",45,1,1);
+// Celestial moon(0.27,"images/moon.jpg",3,0.0366,0.075);
+// Celestial mars(0.53,"images/mars.jpg",55,0.975,0.53);
+// Celestial jupiter(6,"images/jupiter.jpg",70,2.418,0.084);
+// Celestial saturn(3,"images/saturn.jpg",80,2.243,0.034);
+// Celestial uranus(4,"images/uranus.jpg",90,-1.392,0.012);
+// Celestial neptune(3.9,"images/neptune.jpg",100,1.49,0.0061);
+// Celestial pluto(0.19,"images/pluto.jpg",120,-0.157,0.004);
+
+GLdouble dist = 125;
+
+Celestial sun(109,"images/sun.jpg",0,0.0039,0);
+Celestial mercury(0.38,"images/mercury.jpg",dist*1.00,0.017,4.15);
+Celestial venus(0.95,"images/venus.jpg",dist*1.85,-0.004,1.63);
+Celestial earth(1,"images/earth.jpg",dist*2.56,1,1);
+Celestial moon(0.27,"images/moon.jpg",3,0.0366,0.075);
+Celestial mars(0.53,"images/mars.jpg",dist*3.9,0.975,0.53);
+Celestial jupiter(11,"images/jupiter.jpg",dist*13.3,2.418,0.084);
+Celestial saturn(9.1,"images/saturn.jpg",dist*24.6,2.243,0.034);
+Celestial uranus(4,"images/uranus.jpg",dist*49.2,-1.392,0.012);
+Celestial neptune(3.9,"images/neptune.jpg",dist*77.2,1.49,0.0061);
+Celestial pluto(0.19,"images/pluto.jpg",dist*101,-0.157,0.004);
+vector<Celestial> space = {sun,mercury,venus,earth,moon,mars,jupiter,saturn,uranus,neptune,pluto};
 
 bool WireFrame= false;
+bool sim_running = false;
 
 Vec3 camera_pos;
 Vec3 camera_look;
@@ -70,40 +96,35 @@ int theta = 45;
 
 GLdouble yaw = 4.55;
 GLdouble pitch = 1.55;
-GLdouble speed = 0.1;
+GLdouble speed = 1;
 
-
-
-/* --------------*/
+int slices = 128;
+int stacks = 128;
 
 const GLfloat light_ambient[]  = { 0.0f, 0.0f, 0.0f, 1.0f };
 const GLfloat light_diffuse[]  = { 1.0f, 1.0f, 1.0f, 1.0f };
 const GLfloat light_specular[] = { 1.0f, 1.0f, 1.0f, 1.0f };
-const GLfloat light_position[] = { 2.0f, 5.0f, 5.0f, 0.0f };
+const GLfloat light_position[] = { 0.0f, 0.0f, 0.0f, 1.0f };
 
 const GLfloat mat_ambient[]    = { 0.7f, 0.7f, 0.7f, 1.0f };
 const GLfloat mat_diffuse[]    = { 0.8f, 0.8f, 0.8f, 1.0f };
 const GLfloat mat_specular[]   = { 1.0f, 1.0f, 1.0f, 1.0f };
 const GLfloat high_shininess[] = { 100.0f };
 
+/* --------------*/
 
 /* GLUT callback Handlers */
 
 static void resize(int width, int height)
 {
-     double Ratio;
-
-   if(width<=height)
-            glViewport(0,(GLsizei) (height-width)/2,(GLsizei) width,(GLsizei) width);
-    else
-          glViewport((GLsizei) (width-height)/2 ,0 ,(GLsizei) height,(GLsizei) height);
-
+    GLdouble Ratio = (double)width/(double)height;
+    glViewport(0,0,width,height);
     glMatrixMode(GL_PROJECTION);
     glLoadIdentity();
-    gluPerspective (50.0f,1,0.1f, 100.0f);
+    gluPerspective (50.0f,Ratio,0.1f, 10000.0f);
  }
 
-void TextureLoader(char *fileName, GLuint tex){
+void TextureLoader(char *fileName, GLuint tex) {
 
      int width, height; // width & height for the image reader
      unsigned char* image;
@@ -125,20 +146,25 @@ void TextureLoader(char *fileName, GLuint tex){
 
 // Draws input object
 void draw(const Celestial &toRender) {
+    //cout << "\nDrawing: " << toRender.tex_location;
+    //cout << "\nSize: " << toRender.children.size();
     glPushMatrix();
-        if(toRender.orbits == nullptr) {
-            // pivot = origin
+        if(toRender.center_of_universe) {
+            glDisable(GL_LIGHTING);
+            glColor4f(1,1,1,1);
             glBindTexture(GL_TEXTURE_2D,toRender.tex);
-            glRotated((double)theta,0,1,0);
-            gluSphere(toRender.sphere,toRender.radius,40,40);
+            glRotated(toRender.theta,0,1,0);
+            gluSphere(toRender.sphere,toRender.radius,slices,stacks);
         } else {
-            // pivot = orbits
+            glEnable(GL_LIGHTING);
             glBindTexture(GL_TEXTURE_2D,toRender.tex);
-            glTranslated(toRender.orbits->orbit_radius,0,0);
-            glRotated((double)theta,0,1,0);
+            glRotated(toRender.orbit_theta,0,1,0);
             glTranslated(toRender.orbit_radius,0,0);
-            glRotated((double)theta,0,1,0);
-            gluSphere(toRender.sphere,toRender.radius,40,40);
+            glRotated(toRender.theta,0,1,0);
+            gluSphere(toRender.sphere,toRender.radius,slices,stacks);
+        }
+        for (int i = 0; i < toRender.children.size(); i++) {
+            draw(*toRender.children[i]);
         }
     glPopMatrix();
 }
@@ -148,8 +174,6 @@ static void display(void)
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
     glMatrixMode(GL_MODELVIEW);
     glLoadIdentity();
-    
-
     /*
     Uses Spherical Coordinates for camera look position:
         x = sin(theta) * cos*(phi)
@@ -168,31 +192,15 @@ static void display(void)
         camera_look.x,camera_look.y,camera_look.z,    // centerX, centerY, centerZ (where camera is looking AT)
         0.0,1.0,0.0     // upX, upY, upZ (which way is up, keep same)
     );
+    glLightfv(GL_LIGHT0, GL_POSITION, light_position);
+
 
     if(WireFrame)
         glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);        //Draw Our Mesh In Wireframe Mesh
     else
         glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);        //Toggle WIRE FRAME
     
-    for (int i = 0; i < space.size(); i++) {
-        draw(space[i]);
-    }
-    // glPushMatrix();
-    //     glBindTexture(GL_TEXTURE_2D, tex); // images are 2D arrays of pixels, bound to the GL_TEXTURE_2D target.
-    //     glRotatef(-(float)theta,0,1,0);
-    //     //glutSolidTeapot(0.75);
-    //     gluSphere(sphere,2.0,40,40);
-    //   // glutSolidSphere(1.5,25,25);
-    // glPopMatrix();
-
-    // glPushMatrix();
-    //     glBindTexture(GL_TEXTURE_2D, tex1); // images are 2D arrays of pixels, bound to the GL_TEXTURE_2D target.
-    //     glRotatef((float)theta,0,1,0);
-    //     glTranslatef(4,0,0);
-    //     glRotatef((float)theta,0,1,0);
-    //     glutSolidTeapot(0.75);
-    // glPopMatrix();
-
+    draw(space[0]);
     glutSwapBuffers();
     /*
     Why swap buffers? 
@@ -237,7 +245,9 @@ static void key(unsigned char key, int x, int y)
         case '-':
             speed-=0.1;
             break;
-        
+        case ' ':
+            sim_running = !sim_running;
+            break;
     }
     debug();
 }
@@ -266,13 +276,24 @@ void Specialkeys(int key, int x, int y)
 auto t1 = chrono::high_resolution_clock::now();
 static void idle(void)
 {
-    auto t2 = chrono::high_resolution_clock::now();
-    auto d = chrono::duration_cast<chrono::milliseconds>(t2-t1);
-    // wait 16.66ms (60fps)
-    if (d.count() > 16.66) {
-        theta += 1;
-        theta = theta%360;
-        t1 = chrono::high_resolution_clock::now();
+    if (sim_running) {
+        auto t2 = chrono::high_resolution_clock::now();
+        auto d = chrono::duration_cast<chrono::milliseconds>(t2-t1);
+        // wait 16.66ms (60fps)
+        if (d.count() > 16.66) {
+            for (int i = 0; i < space.size(); i++) {
+                Celestial &obj = space[i];
+                obj.theta += obj.rotation_velocity;
+                obj.orbit_theta += obj.orbit_velocity;
+                if (obj.theta > 360) {
+                    obj.theta = 0;
+                }
+                if (obj.orbit_theta > 360) {
+                    obj.orbit_theta = 0;
+                }
+            }
+            t1 = chrono::high_resolution_clock::now();
+        }
     }
     glutPostRedisplay();
 }
@@ -314,6 +335,10 @@ static void init(void)
         glGenTextures(1, &space[i].tex);
         TextureLoader(space[i].tex_location,space[i].tex);
     }
+    space[0].center_of_universe = true;
+    space[0].children = {&space[1],&space[2],&space[3],&space[5],&space[6],&space[7],&space[8],&space[9],&space[10]};
+    space[3].children = {&space[4]};
+    draw(space[0]);
 }
 
 
@@ -336,6 +361,6 @@ int main(int argc, char *argv[])
 
     glutIdleFunc(idle);
     glutMainLoop();
-
+    
     return EXIT_SUCCESS;
 }
