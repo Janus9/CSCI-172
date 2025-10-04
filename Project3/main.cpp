@@ -1,4 +1,6 @@
-
+/* CONTROLS
+    W -> 
+*/
 #include <string.h>
 
 #ifdef __APPLE__
@@ -73,7 +75,7 @@ class Celestial {
 
 GLdouble dist = 125;
 
-Celestial sun(109,"images/sun.jpg",0,0.0039,0);
+Celestial sun(109,"images/sun.jpg",0,0.000,0);
 Celestial mercury(0.38,"images/mercury.jpg",dist*1.00,0.017,4.15);
 Celestial venus(0.95,"images/venus.jpg",dist*1.85,-0.004,1.63);
 Celestial earth(1,"images/earth.jpg",dist*2.56,1,1);
@@ -84,6 +86,7 @@ Celestial saturn(9.1,"images/saturn.jpg",dist*24.6,2.243,0.034);
 Celestial uranus(4,"images/uranus.jpg",dist*49.2,-1.392,0.012);
 Celestial neptune(3.9,"images/neptune.jpg",dist*77.2,1.49,0.0061);
 Celestial pluto(0.19,"images/pluto.jpg",dist*101,-0.157,0.004);
+
 vector<Celestial> space = {sun,mercury,venus,earth,moon,mars,jupiter,saturn,uranus,neptune,pluto};
 
 bool WireFrame= false;
@@ -91,9 +94,16 @@ bool sim_running = false;
 
 Vec3 camera_pos;
 Vec3 camera_look;
+Vec3 focusPos;
 
+int selection = 0;
 int theta = 45;
 
+const double PI = 3.14159265358979323846;
+
+double sim_speed = 1;
+
+GLdouble r = 0;
 GLdouble yaw = 4.55;
 GLdouble pitch = 1.55;
 GLdouble speed = 1;
@@ -183,10 +193,23 @@ static void display(void)
         However, this assumes in the graph Z goes up and down (for pitch) but in OpenGL since Z is in/out of the screen it is actualy Y that
         affect pitch now so we change the functions to match
     */
-    camera_look.x = camera_pos.x + sin(pitch)*cos(yaw);
-    camera_look.y = camera_pos.y + cos(pitch);
-    camera_look.z = camera_pos.z + sin(pitch)*sin(yaw);
+    // camera_look.x = camera_pos.x + sin(pitch)*cos(yaw);
+    // camera_look.y = camera_pos.y + cos(pitch);
+    // camera_look.z = camera_pos.z + sin(pitch)*sin(yaw);
+    Celestial &obj = space[selection];
+
+    camera_look.x = obj.orbit_radius*cos(obj.orbit_theta*PI/180);
+    camera_look.y = 0;
+    camera_look.z = obj.orbit_radius*sin(obj.orbit_theta*PI/180);
     
+    //camera_look = focusPos;
+
+    camera_pos.x = r*cos(yaw)*sin(pitch) + camera_look.x;
+    camera_pos.y = r*cos(pitch) - camera_look.y;
+    camera_pos.z = r*sin(yaw)*sin(pitch) + camera_look.z;
+
+    
+
     gluLookAt(
         camera_pos.x,camera_pos.y,camera_pos.z,         // eyeX, eyeY, eyeZ (camera pos)
         camera_look.x,camera_look.y,camera_look.z,    // centerX, centerY, centerZ (where camera is looking AT)
@@ -211,12 +234,16 @@ static void display(void)
 
 // prints debugging info
 void debug() {
+    system("cls");
     cout << "Camera Pos: (" << camera_pos.x << "," << camera_pos.y << "," << camera_pos.z << ")\n";
     cout << "Camera Look: (" << camera_look.x << "," << camera_look.y << "," << camera_look.z << ")\n";
     cout << "yaw: " << yaw << "\n";
     cout << "pitch: " << pitch << "\n";
     cout << "speed: " << speed << "\n";
+    cout << "selected: " << space[selection].tex_location << "\n";
+    cout << "sim_speed: " << sim_speed << "\n";
 }
+
 
 void camera_strafe(int dir) {
     // dir = 1 or -1
@@ -234,19 +261,34 @@ static void key(unsigned char key, int x, int y)
             exit(0);
             break;
         case 'w':
-            camera_strafe(1);
+            //camera_strafe(1);
+            r+=speed;
             break;
         case 's':
-            camera_strafe(-1);
+            //camera_strafe(-1);
+            r-=speed;
             break;
         case '+':
-            speed+=0.1;
+            speed*=2;
             break;
         case '-':
-            speed-=0.1;
+            speed*=0.5;
             break;
         case ' ':
             sim_running = !sim_running;
+            break;
+        case '1':
+            if (selection < space.size()-1) {
+                selection++;
+            } else {
+                selection = 0;
+            }
+            break;
+        case '2':
+            sim_speed*=2;
+            break;
+        case '3':
+            sim_speed*=0.5;
             break;
     }
     debug();
@@ -283,8 +325,8 @@ static void idle(void)
         if (d.count() > 16.66) {
             for (int i = 0; i < space.size(); i++) {
                 Celestial &obj = space[i];
-                obj.theta += obj.rotation_velocity;
-                obj.orbit_theta += obj.orbit_velocity;
+                obj.theta += obj.rotation_velocity*sim_speed;
+                obj.orbit_theta += obj.orbit_velocity*sim_speed;
                 if (obj.theta > 360) {
                     obj.theta = 0;
                 }
@@ -338,7 +380,10 @@ static void init(void)
     space[0].center_of_universe = true;
     space[0].children = {&space[1],&space[2],&space[3],&space[5],&space[6],&space[7],&space[8],&space[9],&space[10]};
     space[3].children = {&space[4]};
-    draw(space[0]);
+    camera_look.x = 0;
+    camera_look.y = 0;
+    camera_look.z = 0;
+    //draw(space[0]);
 }
 
 
