@@ -1,3 +1,10 @@
+/* INFO
+	Joshua Bayt
+	CSCI 172
+	301893593
+	Project 3
+*/
+
 /* CONTROLS
     W -> Zoom into focused object
     S -> Zoom away from focused object
@@ -311,7 +318,7 @@ static void key(unsigned char key, int x, int y)
             break;
 
     }
-    debug();
+    //debug();
 }
 
 void Specialkeys(int key, int x, int y)
@@ -335,7 +342,7 @@ void Specialkeys(int key, int x, int y)
         yaw-=0.05;     
         break;
    }
-   debug();
+   //debug();
    glutPostRedisplay();
 }
 
