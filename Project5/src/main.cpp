@@ -25,6 +25,8 @@
 
 using namespace std;
 
+/* ENUMS */
+
 /* CLASSES */
 
 class Vector3f {
@@ -73,6 +75,13 @@ class VertexNormal3f {
 
 class Face3D {
     public:
+        enum FaceType {
+           VERTEX,
+           VERTEX_TEXCOORD,
+           VERTEX_NORMAL,
+           VERTEX_TEXCOORD_NORMAL            
+        };
+        FaceType type;
         int v1, v2, v3;       // vertex indices
         int vt1, vt2, vt3;   // texture coordinate indices
         int vn1, vn2, vn3;   // vertex normal indices
@@ -134,8 +143,9 @@ Model* ele = new Model("models/ele.obj");
 Model* trunk = new Model("models/trunk.obj");
 Model* ven2 = new Model("models/ven-2.obj");
 Model* bunny = new Model("models/bunny.obj");
+Model* test = new Model("models/test.obj");
 
-vector<Model*> models = {ateneam2, cow, cube, ele, trunk, ven2, bunny};
+vector<Model*> models = {ateneam2, cow, cube, ele, trunk, ven2, bunny, test};
 
 
 /* GLUT callback Handlers */
@@ -156,12 +166,29 @@ static void resize(int width, int height)
 
 // Apply a single face of the model
 void applyFace(Model *model, Face3D* face) {
-    glVertex3f(model->vertices[face->v1-1].x, model->vertices[face->v1-1].y, model->vertices[face->v1-1].z); glTexCoord2f(model->texCoords[face->vt1-1].u, model->texCoords[face->vt1-1].v); glNormal3f(model->normals[face->vn1-1].x, model->normals[face->vn1-1].y, model->normals[face->vn1-1].z);
-    glVertex3f(model->vertices[face->v2-1].x, model->vertices[face->v2-1].y, model->vertices[face->v2-1].z); glTexCoord2f(model->texCoords[face->vt2-1].u, model->texCoords[face->vt2-1].v); glNormal3f(model->normals[face->vn2-1].x, model->normals[face->vn2-1].y, model->normals[face->vn2-1].z);
-    glVertex3f(model->vertices[face->v3-1].x, model->vertices[face->v3-1].y, model->vertices[face->v3-1].z); glTexCoord2f(model->texCoords[face->vt3-1].u, model->texCoords[face->vt3-1].v); glNormal3f(model->normals[face->vn3-1].x, model->normals[face->vn3-1].y, model->normals[face->vn3-1].z);
+    if (face->type == Face3D::VERTEX) {
+        // VERTEX case
+        glVertex3f(model->vertices[face->v1-1].x, model->vertices[face->v1-1].y, model->vertices[face->v1-1].z); 
+        glVertex3f(model->vertices[face->v2-1].x, model->vertices[face->v2-1].y, model->vertices[face->v2-1].z); 
+        glVertex3f(model->vertices[face->v3-1].x, model->vertices[face->v3-1].y, model->vertices[face->v3-1].z); 
+    } else if (face->type == Face3D::VERTEX_NORMAL) {
+        // VERTEX_NORMAL case
+        glVertex3f(model->vertices[face->v1-1].x, model->vertices[face->v1-1].y, model->vertices[face->v1-1].z); glNormal3f(model->normals[face->vn1-1].x, model->normals[face->vn1-1].y, model->normals[face->vn1-1].z);
+        glVertex3f(model->vertices[face->v2-1].x, model->vertices[face->v2-1].y, model->vertices[face->v2-1].z); glNormal3f(model->normals[face->vn2-1].x, model->normals[face->vn2-1].y, model->normals[face->vn2-1].z);
+        glVertex3f(model->vertices[face->v3-1].x, model->vertices[face->v3-1].y, model->vertices[face->v3-1].z); glNormal3f(model->normals[face->vn3-1].x, model->normals[face->vn3-1].y, model->normals[face->vn3-1].z);
+    } else if (face->type == Face3D::VERTEX_TEXCOORD) {
+        // VERTEX_TEXCOORD case
+        glVertex3f(model->vertices[face->v1-1].x, model->vertices[face->v1-1].y, model->vertices[face->v1-1].z); glTexCoord2f(model->texCoords[face->vt1-1].u, model->texCoords[face->vt1-1].v);
+        glVertex3f(model->vertices[face->v2-1].x, model->vertices[face->v2-1].y, model->vertices[face->v2-1].z); glTexCoord2f(model->texCoords[face->vt2-1].u, model->texCoords[face->vt2-1].v);
+        glVertex3f(model->vertices[face->v3-1].x, model->vertices[face->v3-1].y, model->vertices[face->v3-1].z); glTexCoord2f(model->texCoords[face->vt3-1].u, model->texCoords[face->vt3-1].v);
+    }
+    else {
+        // VERTEX_TEXCOORD_NORMAL case
+        glVertex3f(model->vertices[face->v1-1].x, model->vertices[face->v1-1].y, model->vertices[face->v1-1].z); glTexCoord2f(model->texCoords[face->vt1-1].u, model->texCoords[face->vt1-1].v); glNormal3f(model->normals[face->vn1-1].x, model->normals[face->vn1-1].y, model->normals[face->vn1-1].z);
+        glVertex3f(model->vertices[face->v2-1].x, model->vertices[face->v2-1].y, model->vertices[face->v2-1].z); glTexCoord2f(model->texCoords[face->vt2-1].u, model->texCoords[face->vt2-1].v); glNormal3f(model->normals[face->vn2-1].x, model->normals[face->vn2-1].y, model->normals[face->vn2-1].z);
+        glVertex3f(model->vertices[face->v3-1].x, model->vertices[face->v3-1].y, model->vertices[face->v3-1].z); glTexCoord2f(model->texCoords[face->vt3-1].u, model->texCoords[face->vt3-1].v); glNormal3f(model->normals[face->vn3-1].x, model->normals[face->vn3-1].y, model->normals[face->vn3-1].z);
+    }
 }
-
-// Draw the model by applying each face
 void drawModel(Model *model) {
     if (model->loaded) {
         glPushMatrix();
@@ -176,6 +203,31 @@ void drawModel(Model *model) {
     }
 }
 
+void setFaceType(string entry, Face3D* face) {
+    // Vertex Case (no '/' exists)
+    size_t p1 = entry.find('/');
+    if (p1 == string::npos) {
+        face->type = Face3D::VERTEX;     
+        return;
+    }
+    // Vertex, Texture Coordinate Case (only one '/' exists)
+    size_t p2 = entry.find('/', p1 + 1);
+    if (p2 == string::npos) {
+        face->type = Face3D::VERTEX_TEXCOORD;
+        return;
+    }
+    // Two '/' exists ... two cases for this
+    if (p1 + 1 == p2) {
+        // "//" case -> Vertex, Vertex Normal
+        face->type = Face3D::VERTEX_NORMAL;
+        return;
+    } else {
+        // Vertex, Texture Coordinate, Vertex Normal
+        face->type = Face3D::VERTEX_TEXCOORD_NORMAL;
+        return;
+    }
+}
+
 // Load the model from an OBJ file
 bool loadModel(Model* model) {
     try {
@@ -186,54 +238,59 @@ bool loadModel(Model* model) {
             return false;
         }
         string line;
+        int lineNumber = 0;
         while (getline(file, line)) {
-            if (!(line.empty() || line[0] == '#')) {             
-                istringstream ss(line);
-                string tag;
-                ss >> tag;
+            lineNumber++;
+            if (!(line.empty() || line[0] == '#')) {    // Skip empty lines and comments ('#')           
+                istringstream ss(line);                 // Create a stringstream for each line (treats each line like a mini file!)
+                string tag;                             // in a SS, using >> extracts whitespace separated words, since we have (ex/ v -0.5 -0.5 0.5), this makes (v) (-0.5) (-0.5) (0.5) each a separate word
+                ss >> tag;                              // ss >> tag extracts the first word into tag, thus it will either be (v, vt, vn, f) - anything else is invalid. (We don't use line[0] because the tag can contain multiple characters)           
+                // VERTEX //
                 if (tag == "v") {
                     float x, y, z;
-                    ss >> x >> y >> z;
-                    //cout << "v: " << x << " " << y << " " << z << "\n";
+                    ss >> x >> y >> z;                  // StringStream doesn't require stoi or stof, etc it auto converts it using extraction.
                     model->vertices.push_back(Vertex3f(x, y, z));
+                // TEXTURE COORDINATE //
                 } else if (tag == "vt") {
                     float u, v;
                     ss >> u >> v;
-                    //cout << "vt: " << u << " " << v << "\n";
                     model->texCoords.push_back(VertexTex2f(u, v));
+                // VERTEX NORMAL //
                 } else if (tag == "vn") {
                     float nx, ny, nz;
                     ss >> nx >> ny >> nz;
-                    //cout << "vn: " << nx << " " << ny << " " << nz << "\n";
                     model->normals.push_back(VertexNormal3f(nx, ny, nz));
+                // FACE //
                 } else if (tag == "f") {
+                    /*
+                    The faces are a bit trickier, they do not have whitespace separated values, but instead us '/', but use spaces to separate each entry (9 values total!)
+                    In addition: there are different combinations,
+                        f 1 2 3                     (vertex)
+                        f 3/1 4/2 5/3               (vertex, texture coordinate)
+                        f 6/4/1 3/5/3 7/6/5         (vertex, texture coordinate, vertex normal)
+                        f 7//1 8//2 9//3            (vertex, vertex normal)
+                        - https://en.wikipedia.org/wiki/Wavefront_.obj_file -
+                    Finally, a Face can either be a Quad or a Triangle, we only support Triangles here.
+                    */                   
                     Face3D* face = new Face3D();
                     string t1, t2, t3;
                     ss >> t1 >> t2 >> t3;
-                    size_t s1, s2;
-                    // parse t1
-                    s1 = t1.find('/');
-                    s2 = t1.find('/', s1 + 1);
-                    face->v1 = stoi(t1.substr(0, s1));
-                    face->vt1 = stoi(t1.substr(s1 + 1, s2 - s1 - 1));
-                    face->vn1 = stoi(t1.substr(s2 + 1));
-                    // parse t2
-                    s1 = t2.find('/');
-                    s2 = t2.find('/', s1 + 1);
-                    face->v2 = stoi(t2.substr(0, s1));
-                    face->vt2 = stoi(t2.substr(s1 + 1, s2 - s1 - 1));
-                    face->vn2 = stoi(t2.substr(s2 + 1));
-                    // parse t3
-                    s1 = t3.find('/');
-                    s2 = t3.find('/', s1 + 1);
-                    face->v3 = stoi(t3.substr(0, s1));
-                    face->vt3 = stoi(t3.substr(s1 + 1, s2 - s1 - 1));
-                    face->vn3 = stoi(t3.substr(s2 + 1));
-                    model->faces.push_back(*face);
-                }
+                    // 1. Is face a quad or triangle?
+                    if (!ss.eof()) {
+                        // ss not empty, more data exists (quad case)
+                        cout << "Error: OBJ Loader does not support quads, found at: Line " << lineNumber << "\n";
+                        return false;
+                    }
+                    // 2. Determine face type
+                    // All entrys to a face (should) be the same type, thus we check only the first entry
+                    setFaceType(t1, face); 
+                    cout << "Face type at line " << lineNumber << " is " << face->type << "\n";                
+                } else {
+                    cout << "Invalid tag in OBJ file at line " << lineNumber << "\n";
+                }      
             } 
         }
-        model->loaded = true;
+        model->loaded = false; // to change
         cout << "Model loaded: " << model->vertices.size() << " vertices, " << model->texCoords.size() << " texture coords, " << model->normals.size() << " normals, " << model->faces.size() << " faces.\n";
         return true;
     } catch (const exception& e) {
