@@ -303,11 +303,12 @@ Vector3f cameraPos = Vector3f(0.0f, 0.0f, 5.0f);
 Model* cube = new Model("models/cube.obj", "images/chud.jpg");
 Model* trunk = new Model("models/trunk.obj", "images/chud.jpg");
 Model* bunny = new Model("models/bunny.obj", "images/chud.jpg");
+Model* HealthPickup = new Model("models/HealthPickup.obj", "images/chud.jpg");
 
 
 SkyBox *skybox = new SkyBox();
 
-vector<Model*> models = {cube, trunk, bunny};
+vector<Model*> models = {cube, trunk, bunny, HealthPickup};
 
 char* skyboxFiles[6] = {
     "images/skybox/front.jpg",

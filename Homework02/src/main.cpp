@@ -1,8 +1,7 @@
 /**
- * /summary
- *  - Each face uses the structure: v/vt/vn
- *  - Thus each model contains a fixed amount of vertices, texture coordinates, and vertex normals
- *      - These are store in separate vectors<>
+ * Joshua Bayt
+ * CSCI 172
+ * Homework 2
  */
 
 
@@ -60,6 +59,9 @@ Camera* remoteCamera;
 GLfloat teaPotTheta = 0.0f;
 GLfloat mainCameraTheta = 0.0f;
 
+bool teaPotRotate = false;
+bool cameraRotate = false;
+
 
 /* GLOBAL VARIABLES */
 
@@ -79,17 +81,18 @@ const GLfloat high_shininess[] = { 100.0f };
 
 static void resize(int width, int height)
 {
-     double Ratio;
+    if (height == 0) {
+        height = 1;
+    }
 
-   if(width<=height)
-            glViewport(0,(GLsizei) (height-width)/2,(GLsizei) width,(GLsizei) width);
-    else
-          glViewport((GLsizei) (width-height)/2 ,0 ,(GLsizei) height,(GLsizei) height);
+    glViewport(0, 0, width, height);
 
     glMatrixMode(GL_PROJECTION);
     glLoadIdentity();
-	gluPerspective (50.0f,1,0.1f, 100.0f);
- }
+    
+    GLfloat aspect = (GLfloat)width / (GLfloat)height;
+    gluPerspective(50.0f, aspect, 0.1f, 100.0f);
+}
 
 static void display(void)
 {
@@ -104,9 +107,18 @@ static void display(void)
     }
 
     glPushMatrix();
-        glTranslatef(0,0,0);
-        glRotatef(teaPotTheta, 0.0f, 1.0f, 0.0f);
-        glTranslatef(-mainCamera->position.x*2, -mainCamera->position.y*2, -mainCamera->position.z*2);
+        if (teaPotRotate) {
+            teaPotTheta += 2.5f;
+            // rotate around camera
+            glRotatef(teaPotTheta, 0.0f, 1.0f, 0.0f);
+            glTranslatef(-mainCamera->position.x, -mainCamera->position.y, -mainCamera->position.z);
+        }
+        if (cameraRotate) {
+            // rotate camera around teapot, use circular path equation (radius of 10)
+            mainCameraTheta += 0.5f;
+            mainCamera->position.x = 10 * cos(mainCameraTheta);
+            mainCamera->position.z = 10 * sin(mainCameraTheta);
+        }
         glutSolidTeapot(1.0);
     glPopMatrix();
        
@@ -133,12 +145,11 @@ static void key(unsigned char key, int x, int y)
             mainCamera->enabled = !mainCamera->enabled;
             break;
         case '2':
-            teaPotTheta += 2.0f;
+            teaPotRotate = !teaPotRotate;
             break;
         case '3':
-            mainCameraTheta += 0.1f;
-            mainCamera->position.x = 10 * cos(mainCameraTheta);
-            mainCamera->position.z = 10 * sin(mainCameraTheta);
+            cameraRotate = !cameraRotate;
+            teaPotRotate = false;
             break;
     }
 }
